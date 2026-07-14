@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+python-jose[cryptography]
+passlib[bcrypt]
+pydantic
+pydantic-settings
+python-dotenv
+langchain
+langgraph
+langchain-google-genai

@@ -33,10 +33,15 @@ async def login(request: LoginRequest):
     if request.role == "Admin" or request.role == "CRO / Admin":
         permissions.append("write:settings")
     
+    user_name = "Priya Sharma" if request.role == "Claims Assessor" else f"User {request.employee_id}"
+    branch = "Pune-Kothrud" if request.role == "Claims Assessor" else "HQ"
+    
     return LoginResponse(
         access_token=access_token,
         token_type="bearer",
-        user_name=f"User {request.employee_id}",
+        user_name=user_name,
+        employee_id=request.employee_id,
+        branch=branch,
         role=request.role,
         permissions=permissions
     )

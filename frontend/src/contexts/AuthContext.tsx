@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 interface User {
   user_name: string;
+  employee_id?: string; // made optional for backwards compatibility
+  branch?: string;
   role: string;
   permissions: string[];
 }

@@ -9,5 +9,7 @@ class LoginResponse(BaseModel):
     access_token: str
     token_type: str
     user_name: str
+    employee_id: str
+    branch: str
     role: str
     permissions: list[str]

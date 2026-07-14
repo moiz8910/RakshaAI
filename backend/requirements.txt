@@ -8,3 +8,5 @@ python-dotenv
 langchain
 langgraph
 langchain-google-genai
+qdrant-client
+langchain-qdrant

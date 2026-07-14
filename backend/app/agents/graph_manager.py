@@ -1,97 +1,80 @@
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import StateGraph, END
 from typing import TypedDict
-import json
-from app.core.config import settings
-from langchain_core.messages import SystemMessage, HumanMessage
+from app.agents.nodes.agent_nodes import (
+    claim_summary_node,
+    medical_analysis_node,
+    timeline_reconstruction_node,
+    evidence_extraction_node,
+    fraud_detection_node,
+    risk_scoring_node,
+    recommendation_node
+)
 
 class AgentState(TypedDict):
     claim_id: str
-    policy_age_years: float
-    claim_amount: float
-    medical_history: str
-    incident_details: str
-    fraud_score: float
-    is_high_risk: bool
-    fraud_reasoning: str
+    raw_data: str
+    claim_summary: str
+    medical_analysis: str
+    timeline: str
+    evidence: str
+    fraud_indicators: str
+    risk_score_explanation: str
+    recommendation: str
 
 class GraphManager:
     def __init__(self):
-        self.llm = ChatGoogleGenerativeAI(
-            model=settings.model_name,
-            google_api_key=settings.google_api_key,
-            temperature=0.1
-        )
         self.graph = self._build_graph()
 
     def _build_graph(self):
         workflow = StateGraph(AgentState)
         
-        def assess_fraud(state: AgentState):
-            prompt = f"""
-You are an expert Life Insurance Fraud Investigator.
-Assess the following claim for fraud probability.
-
-Claim Details:
-- Policy Age (Years): {state['policy_age_years']}
-- Claim Amount: ${state['claim_amount']}
-- Medical History: {state['medical_history']}
-- Incident Details: {state['incident_details']}
-
-Analyze the details for inconsistencies or red flags (e.g. policy is very new, high amount, suspicious incident vs medical history).
-Respond EXACTLY with a valid JSON object in this format:
-{{
-  "fraud_score": <number between 0 and 100>,
-  "reasoning": "<your detailed reasoning>"
-}}
-"""
-            messages = [
-                SystemMessage(content="You are a helpful assistant that outputs only JSON."),
-                HumanMessage(content=prompt)
-            ]
-            response = self.llm.invoke(messages)
-            
-            try:
-                # Basic parsing to extract json
-                text = response.content.strip()
-                if text.startswith("```json"):
-                    text = text[7:-3]
-                elif text.startswith("```"):
-                    text = text[3:-3]
-                    
-                result = json.loads(text.strip())
-                score = float(result.get("fraud_score", 0))
-                
-                return {
-                    "fraud_score": score,
-                    "is_high_risk": score > 70,
-                    "fraud_reasoning": result.get("reasoning", "No reasoning provided.")
-                }
-            except Exception as e:
-                return {
-                    "fraud_score": 50.0,
-                    "is_high_risk": False,
-                    "fraud_reasoning": f"Error parsing AI response: {str(e)}"
-                }
-            
-        workflow.add_node("assess", assess_fraud)
-        workflow.set_entry_point("assess")
-        workflow.add_edge("assess", END)
+        # Add nodes
+        workflow.add_node("claim_summary", claim_summary_node)
+        workflow.add_node("medical_analysis", medical_analysis_node)
+        workflow.add_node("timeline_reconstruction", timeline_reconstruction_node)
+        workflow.add_node("evidence_extraction", evidence_extraction_node)
+        workflow.add_node("fraud_detection", fraud_detection_node)
+        workflow.add_node("risk_scoring", risk_scoring_node)
+        workflow.add_node("recommendation", recommendation_node)
+        
+        # Parallel execution from start
+        workflow.set_entry_point("claim_summary") # Using this as a dummy entry, real parallel needs fan-out
+        # Actually LangGraph allows proper parallel via edges if starting from a dummy node
+        # Let's create a fan-out from start to the 4 parallel agents
+        workflow.add_node("start_parallel", lambda state: state)
+        workflow.set_entry_point("start_parallel")
+        
+        workflow.add_edge("start_parallel", "claim_summary")
+        workflow.add_edge("start_parallel", "medical_analysis")
+        workflow.add_edge("start_parallel", "timeline_reconstruction")
+        workflow.add_edge("start_parallel", "evidence_extraction")
+        
+        # Fan-in to fraud_detection
+        # Fraud detection waits for all 4 to complete
+        workflow.add_edge("claim_summary", "fraud_detection")
+        workflow.add_edge("medical_analysis", "fraud_detection")
+        workflow.add_edge("timeline_reconstruction", "fraud_detection")
+        workflow.add_edge("evidence_extraction", "fraud_detection")
+        
+        # Sequential pipeline
+        workflow.add_edge("fraud_detection", "risk_scoring")
+        workflow.add_edge("risk_scoring", "recommendation")
+        workflow.add_edge("recommendation", END)
         
         return workflow.compile()
 
-    def analyze_claim(self, claim_data: dict):
+    def analyze_claim(self, claim_data: str):
         initial_state = AgentState(
-            claim_id=claim_data.get("claim_id", ""),
-            policy_age_years=claim_data.get("policy_age_years", 0.0),
-            claim_amount=claim_data.get("claim_amount", 0.0),
-            medical_history=claim_data.get("medical_history", ""),
-            incident_details=claim_data.get("incident_details", ""),
-            fraud_score=0.0,
-            is_high_risk=False,
-            fraud_reasoning=""
+            claim_id="TEST-001",
+            raw_data=claim_data,
+            claim_summary="",
+            medical_analysis="",
+            timeline="",
+            evidence="",
+            fraud_indicators="",
+            risk_score_explanation="",
+            recommendation=""
         )
-        final_state = self.graph.invoke(initial_state)
-        return final_state
+        return self.graph.invoke(initial_state)
 
 graph_manager = GraphManager()

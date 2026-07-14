@@ -1,96 +1,118 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, ShieldAlert, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import api from '../services/api';
+import { DashboardLayout } from '../layouts/DashboardLayout';
+import { StatsCard } from '../components/StatsCard';
+import { PrimaryButton } from '../components/PrimaryButton';
 
-interface DashboardStats {
-  active_cases: number;
-  high_risk_flags: number;
-  resolved: number;
+interface DashboardSummary {
+  user: {
+    name: string;
+    employee_id: string;
+    role: string;
+    branch: string;
+  };
+  summary: {
+    critical_cases: number;
+    open_cases: number;
+    due_today: number;
+  };
 }
 
 export default function Dashboard() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [data, setData] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchSummary = async () => {
       try {
-        const response = await api.get('/api/dashboard/stats');
-        setStats(response.data);
+        const response = await api.get('/api/dashboard/summary');
+        setData(response.data);
       } catch (error) {
-        console.error('Failed to fetch stats', error);
+        console.error('Failed to fetch summary', error);
+        setError(true);
       } finally {
         setLoading(false);
       }
     };
-    fetchStats();
+    fetchSummary();
   }, []);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
+  const handleGoToQueue = () => {
+    navigate('/dashboard/cases');
   };
 
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center w-full h-64 gap-4">
+          <Loader2 className="animate-spin text-[#0EA5E9]" size={48} />
+          <p className="text-gray-500 font-medium">Loading your dashboard...</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <DashboardLayout>
+        <div className="bg-white p-8 rounded-xl shadow-sm border border-red-100 flex flex-col items-center max-w-md w-full text-center">
+          <h2 className="text-2xl font-bold text-red-600 mb-2">Error Loading Dashboard</h2>
+          <p className="text-gray-500 mb-6">We couldn't fetch your latest cases right now.</p>
+          <PrimaryButton label="Retry" onClick={() => window.location.reload()} />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const { name, role, branch } = data.user;
+  const { critical_cases, open_cases, due_today } = data.summary;
+  
+  // Use first name for welcome message
+  const firstName = name.split(' ')[0];
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-navy text-white p-4 shadow-md flex justify-between items-center sticky top-0 z-10">
-        <div className="flex items-center gap-3">
-          <ShieldAlert className="text-accent" size={28} />
-          <div>
-            <h1 className="font-serif text-xl font-bold tracking-wide">RakshaAI</h1>
-            <p className="text-[10px] text-gray-300 uppercase tracking-widest">Fraud Intelligence</p>
-          </div>
-        </div>
+    <DashboardLayout>
+      <div className="w-full max-w-4xl flex flex-col items-center justify-center">
         
-        <div className="flex items-center gap-6">
-          <div className="text-right">
-            <p className="text-sm font-medium">{user?.user_name}</p>
-            <p className="text-xs text-accent">{user?.role}</p>
-          </div>
-          <button 
-            onClick={handleLogout}
-            className="p-2 hover:bg-navy-light rounded-full transition-colors group"
-            title="Sign Out"
-          >
-            <LogOut size={20} className="text-gray-300 group-hover:text-white" />
-          </button>
-        </div>
-      </header>
-      
-      <main className="flex-1 p-8 max-w-7xl mx-auto w-full">
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-          <h2 className="text-2xl font-bold text-navy mb-4">Welcome to your Dashboard</h2>
-          <p className="text-gray-600 mb-6">
-            You are logged in as a <span className="font-semibold text-accent">{user?.role}</span>. 
-            This is a protected route.
+        {/* Header Section */}
+        <div className="text-center mb-14">
+          <h1 className="font-serif text-[40px] text-[#132541] mb-3 font-normal">
+            Welcome back, {firstName}
+          </h1>
+          <p className="text-gray-400 font-medium text-[15px]">
+            Role: {role} <span className="mx-1">·</span> Branch: {branch}
           </p>
-          
-          {loading ? (
-            <div className="flex justify-center p-8">
-              <Loader2 className="animate-spin text-accent" size={32} />
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-              <div className="bg-blue-50 border border-blue-100 p-5 rounded-lg">
-                <h3 className="font-semibold text-navy text-lg">Active Cases</h3>
-                <p className="text-3xl font-bold mt-2">{stats?.active_cases || 0}</p>
-              </div>
-              <div className="bg-red-50 border border-red-100 p-5 rounded-lg">
-                <h3 className="font-semibold text-navy text-lg">High Risk Flags</h3>
-                <p className="text-3xl font-bold text-red-600 mt-2">{stats?.high_risk_flags || 0}</p>
-              </div>
-              <div className="bg-green-50 border border-green-100 p-5 rounded-lg">
-                <h3 className="font-semibold text-navy text-lg">Resolved</h3>
-                <p className="text-3xl font-bold text-green-600 mt-2">{stats?.resolved || 0}</p>
-              </div>
-            </div>
-          )}
         </div>
-      </main>
-    </div>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full mb-16 px-4 sm:px-0">
+          <StatsCard 
+            number={critical_cases} 
+            label="Critical cases" 
+            numberColorClass="text-[#B91C1C]" 
+          />
+          <StatsCard 
+            number={open_cases} 
+            label="Open cases" 
+            numberColorClass="text-[#132541]" 
+          />
+          <StatsCard 
+            number={due_today} 
+            label="Due today" 
+            numberColorClass="text-[#059669]" 
+          />
+        </div>
+
+        {/* Primary Action */}
+        <PrimaryButton label="Go to Case Queue →" onClick={handleGoToQueue} />
+
+      </div>
+    </DashboardLayout>
   );
 }

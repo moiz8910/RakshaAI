@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import CaseQueue from './pages/CaseQueue';
 
 const LoadingScreen = () => (
   <div className="min-h-screen bg-navy flex items-center justify-center">
@@ -64,6 +65,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Dashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/dashboard/cases" 
+                element={
+                  <ProtectedRoute>
+                    <CaseQueue />
                   </ProtectedRoute>
                 } 
               />

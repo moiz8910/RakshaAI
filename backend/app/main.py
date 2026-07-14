@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import auth, claims, dashboard
+from app.api import auth, claims, dashboard, cases
 from app.db.session import engine, Base
 
 # Create DB tables
@@ -19,6 +19,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(claims.router, prefix="/api/claims", tags=["claims"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"])
+app.include_router(cases.router, prefix="/api/cases", tags=["cases"])
 
 @app.get("/")
 def read_root():

